@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Up the River, Down the River — Scorekeeper</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --felt: #0b3d24;
+    --felt-2: #0f4d2e;
+    --panel: #123a28;
+    --panel-2: #16483210;
+    --card: #16483240;
+    --ink: #eef7f0;
+    --muted: #a9c2b2;
+    --accent: #e8c14a;
+    --accent-2: #4ade80;
+    --danger: #f87171;
+    --border: #2a6b47;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: radial-gradient(ellipse at top, var(--felt-2), var(--felt) 70%);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 16px;
+    padding-bottom: 60px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header.app-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  header.app-header h1 {
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  header.app-header h1 span { color: var(--accent); }
+  header.app-header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+  .panel {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+  }
+  .panel h2 {
+    font-size: 1.05rem;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .panel h2 .badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--accent);
+    color: #1a2e1f;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+
+  label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; }
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    background: #0d2b1c;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--ink);
+    padding: 9px 10px;
+    font-size: 1rem;
+  }
+  input[type="number"]:focus, input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-2);
+  }
+
+  .field { margin-bottom: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > .field { flex: 1; min-width: 120px; }
+
+  .player-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .player-row { display: flex; align-items: center; gap: 8px; }
+  .player-row .swatch {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .player-row input { flex: 1; }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: transform 0.1s, filter 0.15s;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent-2); color: #0b2417; width: 100%; }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:disabled { background: #3a4a40; color: #7c8d83; cursor: not-allowed; }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--ink); }
+  .btn-secondary:hover { background: rgba(255,255,255,0.06); }
+  .btn-danger { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+  .btn-danger:hover { background: rgba(248,113,113,0.1); }
+  .btn-small { padding: 6px 12px; font-size: 0.8rem; }
+  .btn-icon { background: transparent; border: none; color: var(--muted); font-size: 1.1rem; padding: 4px 8px; }
+
+  .add-player-btn {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    width: 100%;
+    padding: 8px;
+  }
+
+  .top-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+  .top-actions button { flex: 1; }
+
+  /* Round header */
+  .round-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .round-meta .stat { text-align: center; }
+  .round-meta .stat .n { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+  .round-meta .stat .l { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .trump-select { display: flex; align-items: center; gap: 8px; }
+  .trump-select select { width: auto; }
+
+  table.bid-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  table.bid-table th {
+    text-align: left; font-size: 0.75rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 6px;
+  }
+  table.bid-table td { padding: 6px; vertical-align: middle; }
+  table.bid-table td.name-cell { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  table.bid-table input[type="number"] { text-align: center; }
+  .dealer-tag {
+    font-size: 0.65rem; background: var(--accent); color: #1a2e1f;
+    padding: 1px 7px; border-radius: 999px; font-weight: 700;
+  }
+
+  .sum-line {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.85rem; color: var(--muted); margin: 8px 0 14px;
+    padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.03);
+  }
+  .sum-line.warn { color: var(--danger); background: rgba(248,113,113,0.08); }
+  .sum-line.ok { color: var(--accent-2); }
+  .sum-line b { font-size: 1rem; }
+
+  .phase-note {
+    font-size: 0.85rem; color: var(--muted); margin-bottom: 12px;
+    background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px 12px;
+  }
+
+  /* Scoreboard */
+  .scoreboard-wrap { overflow-x: auto; }
+  table.scoreboard { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 0.85rem; }
+  table.scoreboard th, table.scoreboard td {
+    padding: 7px 9px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06);
+    white-space: nowrap;
+  }
+  table.scoreboard thead th {
+    color: var(--accent); font-size: 0.8rem; position: sticky; top: 0; background: var(--panel);
+  }
+  table.scoreboard tbody tr:hover { background: rgba(255,255,255,0.03); cursor: pointer; }
+  table.scoreboard td.round-col { color: var(--muted); font-weight: 700; }
+  table.scoreboard tfoot td {
+    font-weight: 800; color: var(--accent-2); border-top: 2px solid var(--border); border-bottom: none;
+  }
+  .cell-detail { font-size: 0.7rem; color: var(--muted); display: block; }
+  .cell-score { font-weight: 700; }
+
+  .empty-state { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 0; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; max-width: 420px; width: 100%; max-height: 85vh; overflow-y: auto;
+  }
+  .modal h3 { margin-bottom: 12px; }
+  .modal .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  .footer-note { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 20px; }
+
+  @media (max-width: 480px) {
+    .round-meta { justify-content: space-around; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app-header">
+    <h1>Up the River, <span>Down the River</span></h1>
+    <p>Bid tracker &amp; scoreboard for the classic trick-taking game</p>
+  </header>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen">
+    <div class="panel">
+      <h2>New Game Setup</h2>
+
+      <div class="field">
+        <label for="player-count">Number of players</label>
+        <input type="number" id="player-count" min="2" max="10" value="4" />
+      </div>
+
+      <div class="player-list" id="player-list"></div>
+      <button class="add-player-btn" id="add-player-btn" type="button">+ Add player</button>
+    </div>
+
+    <div class="panel">
+      <h2>Round Sequence</h2>
+      <div class="row">
+        <div class="field">
+          <label for="max-cards">Peak hand size</label>
+          <input type="number" id="max-cards" min="1" max="13" />
+        </div>
+        <div class="field">
+          <label for="starting-dealer">Starting dealer</label>
+          <select id="starting-dealer"></select>
+        </div>
+      </div>
+      <p class="phase-note" id="sequence-preview"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Scoring Rule</h2>
+      <div class="field">
+        <label for="scoring-mode">If bid is missed, players get…</label>
+        <select id="scoring-mode">
+          <option value="zero">0 points (standard)</option>
+          <option value="tricks">Points equal to tricks actually won</option>
+          <option value="penalty">Lose 1 point per trick off from bid</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="exact-bonus">Bonus for hitting bid exactly</label>
+          <input type="number" id="exact-bonus" min="0" value="10" />
+        </div>
+        <div class="field">
+          <label for="per-trick">Points per trick (when bid is hit)</label>
+          <input type="number" id="per-trick" min="0" value="1" />
+        </div>
+      </div>
+      <p class="phase-note">Default: hit your bid exactly → 10 + (1 × tricks won). Miss it → 0.</p>
+    </div>
+
+    <button class="btn-primary" id="start-game-btn" type="button">Start Game</button>
+    <p class="footer-note" id="resume-note"></p>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" style="display:none;">
+    <div class="top-actions">
+      <button class="btn-secondary btn-small" id="new-game-btn" type="button">↺ New Game</button>
+      <button class="btn-danger btn-small" id="reset-game-btn" type="button">Reset Scores</button>
+    </div>
+
+    <div class="panel" id="round-panel"></div>
+
+    <div class="panel">
+      <h2>Scoreboard</h2>
+      <div class="scoreboard-wrap">
+        <table class="scoreboard" id="scoreboard-table"></table>
+      </div>
+      <p class="empty-state" id="scoreboard-empty" style="display:none;">No rounds scored yet.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal">
+    <h3 id="edit-modal-title">Edit Round</h3>
+    <div id="edit-modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="edit-cancel-btn" type="button">Cancel</button>
+      <button class="btn-primary" id="edit-save-btn" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'utr_scorekeeper_state_v1';
+  var PLAYER_COLORS = ['#e8c14a','#4ade80','#60a5fa','#f472b6','#f97316','#a78bfa','#2dd4bf','#f87171','#fbbf24','#94a3b8'];
+  var SUITS = [
+    { v: 'none', label: 'No Trump' },
+    { v: '♠', label: '♠ Spades' },
+    { v: '♥', label: '♥ Hearts' },
+    { v: '♦', label: '♦ Diamonds' },
+    { v: '♣', label: '♣ Clubs' }
+  ];
+
+  var state = null; // full game state once started
+
+  // ---------- Persistence ----------
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function clearSave() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  }
+
+  // ---------- Setup screen ----------
+  var els = {
+    setupScreen: document.getElementById('setup-screen'),
+    gameScreen: document.getElementById('game-screen'),
+    playerCount: document.getElementById('player-count'),
+    playerList: document.getElementById('player-list'),
+    addPlayerBtn: document.getElementById('add-player-btn'),
+    maxCards: document.getElementById('max-cards'),
+    startingDealer: document.getElementById('starting-dealer'),
+    sequencePreview: document.getElementById('sequence-preview'),
+    scoringMode: document.getElementById('scoring-mode'),
+    exactBonus: document.getElementById('exact-bonus'),
+    perTrick: document.getElementById('per-trick'),
+    startGameBtn: document.getElementById('start-game-btn'),
+    resumeNote: document.getElementById('resume-note'),
+    newGameBtn: document.getElementById('new-game-btn'),
+    resetGameBtn: document.getElementById('reset-game-btn'),
+    roundPanel: document.getElementById('round-panel'),
+    scoreboardTable: document.getElementById('scoreboard-table'),
+    scoreboardEmpty: document.getElementById('scoreboard-empty'),
+    editModal: document.getElementById('edit-modal'),
+    editModalTitle: document.getElementById('edit-modal-title'),
+    editModalBody: document.getElementById('edit-modal-body'),
+    editCancelBtn: document.getElementById('edit-cancel-btn'),
+    editSaveBtn: document.getElementById('edit-save-btn')
+  };
+
+  var setupPlayerNames = [];
+
+  function defaultMaxCards(n) {
+    var m = Math.floor(52 / Math.max(n, 1));
+    return Math.max(1, Math.min(m, 13));
+  }
+
+  function renderPlayerList() {
+    var n = parseInt(els.playerCount.value, 10) || 2;
+    n = Math.max(2, Math.min(10, n));
+    els.playerCount.value = n;
+
+    while (setupPlayerNames.length < n) {
+      setupPlayerNames.push('Player ' + (setupPlayerNames.length + 1));
+    }
+    setupPlayerNames.length = n;
+
+    els.playerList.innerHTML = '';
+    setupPlayerNames.forEach(function (name, i) {
+      var row = document.createElement('div');
+      row.className = 'player-row';
+      var swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length];
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.value = name;
+      input.placeholder = 'Player ' + (i + 1);
+      input.addEventListener('input', function () {
+        setupPlayerNames[i] = input.value.trim() || ('Player ' + (i + 1));
+        refreshDealerOptions();
+      });
+      row.appendChild(swatch);
+      row.appendChild(input);
+      els.playerList.appendChild(row);
+    });
+
+    els.maxCards.value = defaultMaxCards(n);
+    els.maxCards.max = Math.max(1, Math.floor(52 / n));
+    refreshDealerOptions();
+    updateSequencePreview();
+  }
+
+  function refreshDealerOptions() {
+    var current = els.startingDealer.value;
+    els.startingDealer.innerHTML = '';
+    setupPlayerNames.forEach(function (name, i) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = name;
+      els.startingDealer.appendChild(opt);
+    });
+    if (current !== '' && current < setupPlayerNames.length) {
+      els.startingDealer.value = current;
+    }
+  }
+
+  function buildSequence(maxCards) {
+    var seq = [];
+    for (var i = 1; i <= maxCards; i++) seq.push(i);
+    for (var j = maxCards - 1; j >= 1; j--) seq.push(j);
+    return seq;
+  }
+
+  function updateSequencePreview() {
+    var max = parseInt(els.maxCards.value, 10) || 1;
+    var n = setupPlayerNames.length;
+    var deckCap = Math.floor(52 / n);
+    if (max > deckCap) { max = deckCap; els.maxCards.value = max; }
+    var seq = buildSequence(max);
+    els.sequencePreview.textContent =
+      seq.length + ' rounds total: ' + seq.join(' → ') + ' cards per hand.';
+  }
+
+  els.playerCount.addEventListener('input', renderPlayerList);
+  els.addPlayerBtn.addEventListener('click', function () {
+    els.playerCount.value = Math.min(10, (parseInt(els.playerCount.value, 10) || 2) + 1);
+    renderPlayerList();
+  });
+  els.maxCards.addEventListener('input', updateSequencePreview);
+
+  function startGame() {
+    var n = setupPlayerNames.length;
+    var maxCards = parseInt(els.maxCards.value, 10) || defaultMaxCards(n);
+    var sequence = buildSequence(maxCards);
+    var startingDealer = parseInt(els.startingDealer.value, 10) || 0;
+
+    state = {
+      players: setupPlayerNames.map(function (name, i) {
+        return { name: name, color: PLAYER_COLORS[i % PLAYER_COLORS.length] };
+      }),
+      sequence: sequence,
+      startingDealer: startingDealer,
+      scoring: {
+        mode: els.scoringMode.value,
+        exactBonus: parseInt(els.exactBonus.value, 10) || 0,
+        perTrick: parseInt(els.perTrick.value, 10) || 0
+      },
+      currentRound: 0, // index into sequence
+      phase: 'bidding', // 'bidding' | 'tricks'
+      trump: 'none',
+      bids: setupPlayerNames.map(function () { return null; }),
+      tricksWon: setupPlayerNames.map(function () { return null; }),
+      history: [] // { roundIndex, cards, dealer, trump, bids:[], tricks:[], scores:[] }
+    };
+    save();
+    showGameScreen();
+  }
+
+  els.startGameBtn.addEventListener('click', startGame);
+
+  // ---------- Game screen ----------
+  function dealerForRound(roundIndex) {
+    var n = state.players.length;
+    return (state.startingDealer + roundIndex) % n;
+  }
+
+  function scoreFor(bid, tricks) {
+    var s = state.scoring;
+    if (bid === tricks) {
+      return s.exactBonus + s.perTrick * tricks;
+    }
+    switch (s.mode) {
+      case 'tricks': return tricks;
+      case 'penalty': return -Math.abs(bid - tricks);
+      default: return 0;
+    }
+  }
+
+  function totalsThroughHistory() {
+    var totals = state.players.map(function () { return 0; });
+    state.history.forEach(function (round) {
+      round.scores.forEach(function (sc, i) { totals[i] += sc; });
+    });
+    return totals;
+  }
+
+  function renderRoundPanel() {
+    var totalRounds = state.sequence.length;
+    if (state.currentRound >= totalRounds) {
+      renderGameOverPanel();
+      return;
+    }
+    var cards = state.sequence[state.currentRound];
+    var dealer = dealerForRound(state.currentRound);
+    var n = state.players.length;
+
+    var html = '';
+    html += '<div class="round-meta">';
+    html += '<div class="stat"><div class="n">' + (state.currentRound + 1) + ' / ' + totalRounds + '</div><div class="l">Round</div></div>';
+    html += '<div class="stat"><div class="n">' + cards + '</div><div class="l">Cards</div></div>';
+    html += '<div class="stat"><div class="n">' + escapeHtml(state.players[dealer].name) + '</div><div class="l">Dealer</div></div>';
+    html += '<div class="trump-select"><label style="margin:0;">Trump</label><select id="trump-picker">' +
+      SUITS.map(function (s) {
+        return '<option value="' + s.v + '"' + (s.v === state.trump ? ' selected' : '') + '>' + s.label + '</option>';
+      }).join('') + '</select></div>';
+    html += '</div>';
+
+    if (state.phase === 'bidding') {
+      html += renderBiddingPhase(cards, dealer, n);
+    } else {
+      html += renderTricksPhase(cards, dealer, n);
+    }
+
+    els.roundPanel.innerHTML = html;
+
+    document.getElementById('trump-picker').addEventListener('change', function (e) {
+      state.trump = e.target.value;
+      save();
+    });
+
+    if (state.phase === 'bidding') {
+      wireBiddingPhase(cards);
+    } else {
+      wireTricksPhase(cards);
+    }
+  }
+
+  function renderBiddingPhase(cards, dealer, n) {
+    var html = '<h2 style="margin-bottom:10px;">Bids <span class="badge">Before play</span></h2>';
+    html += '<table class="bid-table"><thead><tr><th>Player</th><th style="text-align:center;">Bid (0–' + cards + ')</th></tr></thead><tbody>';
+    state.players.forEach(function (p, i) {
+      html += '<tr>';
+      html += '<td class="name-cell"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + p.color + ';"></span>' +
+        escapeHtml(p.name) + (i === dealer ? ' <span class="dealer-tag">DEALER</span>' : '') + '</td>';
+      html += '<td><input type="number" class="bid-input" data-idx="' + i + '" min="0" max="' + cards + '" value="' +
+        (state.bids[i] !== null ? state.bids[i] : '') + '" /></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div class="sum-line" id="bid-sum-line"></div>';
+    html += '<button class="btn-primary" id="confirm-bids-btn" type="button">Confirm Bids &amp; Deal</button>';
+    return html;
+  }
+
+  function currentBidSum() {
+    return state.bids.reduce(function (a, b) { return a + (b || 0); }, 0);
+  }
+
+  function updateBidSumLine(cards) {
+    var line = document.getElementById('bid-sum-line');
+    var allFilled = state.bids.every(function (b) { return b !== null && b !== ''; });
+    var sum = currentBidSum();
+    var text = 'Total bid: <b>' + sum + '</b> / ' + cards + ' tricks available';
+    line.className = 'sum-line';
+    if (allFilled && sum === cards) {
+      line.classList.add('warn');
+      text += ' — total equals tricks available (someone must miss!)';
+    } else if (allFilled) {
+      line.classList.add('ok');
+    }
+    line.innerHTML = text;
+    document.getElementById('confirm-bids-btn').disabled = !allFilled;
+  }
+
+  function wireBiddingPhase(cards) {
+    var inputs = document.querySelectorAll('.bid-input');
+    inputs.forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var idx = parseInt(inp.dataset.idx, 10);
+        var val = inp.value === '' ? null : Math.max(0, Math.min(cards, parseInt(inp.value, 10) || 0));
+        state.bids[idx] = val;
+        save();
+        updateBidSumLine(cards);
+      });
+    });
+    updateBidSumLine(cards);
+    document.getElementById('confirm-bids-btn').addEventListener('click', function () {
+      if (state.bids.every(function (b) { return b !== null; })) {
+        state.phase = 'tricks';
+        save();
+        renderRoundPanel();
+      }
+    });
+  }
+
+  function renderTricksPhase(cards, dealer, n) {
+    var html = '<h2 style="margin-bottom:10px;">Tricks Won <span class="badge">After play</span></h2>';
+    html += '<p class="phase-note">Play the hand, then enter how many tricks each player actually won.</p>';
+    html += '<table class="bid-table"><thead><tr><th>Player</th><th style="text-align:center;">Bid</th><th style="text-align:center;">Won (0–' + cards + ')</th></tr></thead><tbody>';
+    state.players.forEach(function (p, i) {
+      html += '<tr>';
+      html += '<td class="name-cell"><span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + p.color + ';"></span>' +
+        escapeHtml(p.name) + (i === dealer ? ' <span class="dealer-tag">DEALER</span>' : '') + '</td>';
+      html += '<td style="text-align:center;color:var(--muted);font-weight:700;">' + state.bids[i] + '</td>';
+      html += '<td><input type="number" class="tricks-input" data-idx="' + i + '" min="0" max="' + cards + '" value="' +
+        (state.tricksWon[i] !== null ? state.tricksWon[i] : '') + '" /></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div class="sum-line" id="tricks-sum-line"></div>';
+    html += '<div style="display:flex;gap:10px;">';
+    html += '<button class="btn-secondary" id="back-to-bids-btn" type="button" style="flex:1;">← Edit Bids</button>';
+    html += '<button class="btn-primary" id="confirm-tricks-btn" type="button" style="flex:2;">Score Round</button>';
+    html += '</div>';
+    return html;
+  }
+
+  function updateTricksSumLine(cards) {
+    var line = document.getElementById('tricks-sum-line');
+    var allFilled = state.tricksWon.every(function (t) { return t !== null && t !== ''; });
+    var sum = state.tricksWon.reduce(function (a, b) { return a + (b || 0); }, 0);
+    var text = 'Total tricks entered: <b>' + sum + '</b> / ' + cards + ' required';
+    line.className = 'sum-line';
+    var matches = allFilled && sum === cards;
+    if (matches) line.classList.add('ok');
+    else if (allFilled) line.classList.add('warn');
+    if (allFilled && !matches) text += ' — must equal ' + cards + ' exactly';
+    line.innerHTML = text;
+    document.getElementById('confirm-tricks-btn').disabled = !matches;
+  }
+
+  function wireTricksPhase(cards) {
+    var inputs = document.querySelectorAll('.tricks-input');
+    inputs.forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var idx = parseInt(inp.dataset.idx, 10);
+        var val = inp.value === '' ? null : Math.max(0, Math.min(cards, parseInt(inp.value, 10) || 0));
+        state.tricksWon[idx] = val;
+        save();
+        updateTricksSumLine(cards);
+      });
+    });
+    updateTricksSumLine(cards);
+
+    document.getElementById('back-to-bids-btn').addEventListener('click', function () {
+      state.phase = 'bidding';
+      save();
+      renderRoundPanel();
+    });
+
+    document.getElementById('confirm-tricks-btn').addEventListener('click', function () {
+      var sum = state.tricksWon.reduce(function (a, b) { return a + (b || 0); }, 0);
+      if (sum !== cards) return;
+
+      var scores = state.players.map(function (_, i) {
+        return scoreFor(state.bids[i], state.tricksWon[i]);
+      });
+
+      state.history.push({
+        roundIndex: state.currentRound,
+        cards: cards,
+        dealer: dealerForRound(state.currentRound),
+        trump: state.trump,
+        bids: state.bids.slice(),
+        tricks: state.tricksWon.slice(),
+        scores: scores
+      });
+
+      state.currentRound += 1;
+      state.phase = 'bidding';
+      state.bids = state.players.map(function () { return null; });
+      state.tricksWon = state.players.map(function () { return null; });
+
+      save();
+      renderRoundPanel();
+      renderScoreboard();
+    });
+  }
+
+  function renderGameOverPanel() {
+    var totals = totalsThroughHistory();
+    var maxScore = Math.max.apply(null, totals);
+    var winners = state.players.filter(function (_, i) { return totals[i] === maxScore; }).map(function (p) { return p.name; });
+
+    var html = '<h2>🏆 Game Complete</h2>';
+    html += '<p class="phase-note" style="font-size:1rem;color:var(--accent);text-align:center;">' +
+      escapeHtml(winners.join(' & ')) + (winners.length > 1 ? ' tie for the win' : ' wins') +
+      ' with ' + maxScore + ' points!</p>';
+    els.roundPanel.innerHTML = html;
+  }
+
+  function renderScoreboard() {
+    var totals = totalsThroughHistory();
+    if (state.history.length === 0) {
+      els.scoreboardTable.innerHTML = '';
+      els.scoreboardEmpty.style.display = 'block';
+      return;
+    }
+    els.scoreboardEmpty.style.display = 'none';
+
+    var html = '<thead><tr><th>Rnd</th>';
+    state.players.forEach(function (p) {
+      html += '<th style="color:' + p.color + ';">' + escapeHtml(p.name) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    state.history.forEach(function (round, hIdx) {
+      html += '<tr data-hidx="' + hIdx + '">';
+      html += '<td class="round-col">' + (round.roundIndex + 1) + '<br><span class="cell-detail">' + round.cards + 'c</span></td>';
+      state.players.forEach(function (p, i) {
+        html += '<td><span class="cell-score">' + (round.scores[i] >= 0 ? '+' : '') + round.scores[i] + '</span>' +
+          '<span class="cell-detail">' + round.bids[i] + '→' + round.tricks[i] + '</span></td>';
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody><tfoot><tr><td>Total</td>';
+    totals.forEach(function (t) { html += '<td>' + t + '</td>'; });
+    html += '</tr></tfoot>';
+
+    els.scoreboardTable.innerHTML = html;
+
+    els.scoreboardTable.querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        openEditModal(parseInt(tr.dataset.hidx, 10));
+      });
+    });
+  }
+
+  // ---------- Edit past round modal ----------
+  var editingHIdx = null;
+
+  function openEditModal(hIdx) {
+    editingHIdx = hIdx;
+    var round = state.history[hIdx];
+    els.editModalTitle.textContent = 'Edit Round ' + (round.roundIndex + 1) + ' (' + round.cards + ' cards)';
+
+    var html = '<table class="bid-table"><thead><tr><th>Player</th><th>Bid</th><th>Won</th></tr></thead><tbody>';
+    state.players.forEach(function (p, i) {
+      html += '<tr>';
+      html += '<td class="name-cell">' + escapeHtml(p.name) + '</td>';
+      html += '<td><input type="number" class="edit-bid" data-idx="' + i + '" min="0" max="' + round.cards + '" value="' + round.bids[i] + '" /></td>';
+      html += '<td><input type="number" class="edit-tricks" data-idx="' + i + '" min="0" max="' + round.cards + '" value="' + round.tricks[i] + '" /></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<p class="phase-note" style="margin-top:10px;">Tricks won must sum to ' + round.cards + '.</p>';
+    html += '<button class="btn-danger" id="delete-round-btn" type="button" style="width:100%;margin-top:6px;">Delete this round</button>';
+
+    els.editModalBody.innerHTML = html;
+    els.editModal.classList.add('open');
+
+    document.getElementById('delete-round-btn').addEventListener('click', function () {
+      if (confirm('Delete round ' + (round.roundIndex + 1) + '? This cannot be undone.')) {
+        state.history.splice(hIdx, 1);
+        save();
+        renderScoreboard();
+        closeEditModal();
+      }
+    });
+  }
+
+  function closeEditModal() {
+    els.editModal.classList.remove('open');
+    editingHIdx = null;
+  }
+
+  els.editCancelBtn.addEventListener('click', closeEditModal);
+  els.editModal.addEventListener('click', function (e) {
+    if (e.target === els.editModal) closeEditModal();
+  });
+
+  els.editSaveBtn.addEventListener('click', function () {
+    if (editingHIdx === null) return;
+    var round = state.history[editingHIdx];
+    var bidInputs = els.editModalBody.querySelectorAll('.edit-bid');
+    var trickInputs = els.editModalBody.querySelectorAll('.edit-tricks');
+
+    var newBids = round.bids.slice();
+    var newTricks = round.tricks.slice();
+    bidInputs.forEach(function (inp) {
+      newBids[parseInt(inp.dataset.idx, 10)] = Math.max(0, Math.min(round.cards, parseInt(inp.value, 10) || 0));
+    });
+    trickInputs.forEach(function (inp) {
+      newTricks[parseInt(inp.dataset.idx, 10)] = Math.max(0, Math.min(round.cards, parseInt(inp.value, 10) || 0));
+    });
+
+    var sum = newTricks.reduce(function (a, b) { return a + b; }, 0);
+    if (sum !== round.cards) {
+      alert('Tricks won must sum to exactly ' + round.cards + ' (currently ' + sum + ').');
+      return;
+    }
+
+    round.bids = newBids;
+    round.tricks = newTricks;
+    round.scores = state.players.map(function (_, i) { return scoreFor(newBids[i], newTricks[i]); });
+
+    save();
+    renderScoreboard();
+    closeEditModal();
+  });
+
+  // ---------- Utility ----------
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function showGameScreen() {
+    els.setupScreen.style.display = 'none';
+    els.gameScreen.style.display = 'block';
+    renderRoundPanel();
+    renderScoreboard();
+  }
+
+  function showSetupScreen() {
+    els.setupScreen.style.display = 'block';
+    els.gameScreen.style.display = 'none';
+  }
+
+  els.newGameBtn.addEventListener('click', function () {
+    if (confirm('Start a brand new game? Current game will be lost unless you keep this tab.')) {
+      state = null;
+      clearSave();
+      showSetupScreen();
+      renderPlayerList();
+    }
+  });
+
+  els.resetGameBtn.addEventListener('click', function () {
+    if (confirm('Reset all scores but keep the same players and settings?')) {
+      state.currentRound = 0;
+      state.phase = 'bidding';
+      state.trump = 'none';
+      state.bids = state.players.map(function () { return null; });
+      state.tricksWon = state.players.map(function () { return null; });
+      state.history = [];
+      save();
+      renderRoundPanel();
+      renderScoreboard();
+    }
+  });
+
+  // ---------- Init ----------
+  var saved = load();
+  if (saved && saved.players && saved.sequence) {
+    state = saved;
+    // backfill in case of older saves missing fields
+    if (!state.tricksWon) state.tricksWon = state.players.map(function () { return null; });
+    if (!state.trump) state.trump = 'none';
+    showGameScreen();
+  } else {
+    renderPlayerList();
+    showSetupScreen();
+  }
+})();
+</script>
+</body>
+</html>
