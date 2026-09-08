@@ -167,21 +167,25 @@
 
   /* Scoreboard */
   .scoreboard-wrap { overflow-x: auto; }
-  table.scoreboard { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 0.85rem; }
+  table.scoreboard { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
   table.scoreboard th, table.scoreboard td {
-    padding: 7px 9px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 5px 2px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06);
     white-space: nowrap;
   }
   table.scoreboard thead th {
-    color: var(--accent); font-size: 0.8rem; position: sticky; top: 0; background: var(--panel);
+    color: var(--accent); font-size: 0.72rem; position: sticky; top: 0; background: var(--panel);
+  }
+  table.scoreboard thead th .th-name {
+    display: inline-block; max-width: 52px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; vertical-align: bottom;
   }
   table.scoreboard tbody tr:hover { background: rgba(255,255,255,0.03); cursor: pointer; }
   table.scoreboard td.round-col { color: var(--muted); font-weight: 700; }
   table.scoreboard tfoot td {
     font-weight: 800; color: var(--accent-2); border-top: 2px solid var(--border); border-bottom: none;
   }
-  .cell-detail { font-size: 0.7rem; color: var(--muted); display: block; }
-  .cell-score { font-weight: 700; }
+  .cell-detail { font-size: 0.62rem; color: var(--muted); display: block; }
+  .cell-score { font-weight: 700; font-size: 0.82rem; }
 
   .empty-state { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 0; }
 
@@ -726,7 +730,7 @@
 
     var html = '<thead><tr><th>Rnd</th>';
     state.players.forEach(function (p) {
-      html += '<th style="color:' + p.color + ';">' + escapeHtml(p.name) + '</th>';
+      html += '<th style="color:' + p.color + ';"><span class="th-name">' + escapeHtml(p.name) + '</span></th>';
     });
     html += '</tr></thead><tbody>';
 
