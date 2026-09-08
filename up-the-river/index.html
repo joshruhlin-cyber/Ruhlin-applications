@@ -248,6 +248,7 @@
           <option value="zero">0 points (standard)</option>
           <option value="tricks">Points equal to tricks actually won</option>
           <option value="penalty">Lose 1 point per trick off from bid</option>
+          <option value="hybrid">Hybrid: penalty if under, tricks if over</option>
         </select>
       </div>
       <div class="row">
@@ -260,7 +261,7 @@
           <input type="number" id="per-trick" min="0" value="1" />
         </div>
       </div>
-      <p class="phase-note">Default: hit your bid exactly → 10 + (1 × tricks won). Miss it → 0.</p>
+      <p class="phase-note" id="scoring-note"></p>
     </div>
 
     <button class="btn-primary" id="start-game-btn" type="button">Start Game</button>
@@ -340,6 +341,7 @@
     scoringMode: document.getElementById('scoring-mode'),
     exactBonus: document.getElementById('exact-bonus'),
     perTrick: document.getElementById('per-trick'),
+    scoringNote: document.getElementById('scoring-note'),
     startGameBtn: document.getElementById('start-game-btn'),
     resumeNote: document.getElementById('resume-note'),
     newGameBtn: document.getElementById('new-game-btn'),
@@ -435,6 +437,29 @@
   });
   els.maxCards.addEventListener('input', updateSequencePreview);
 
+  function updateScoringNote() {
+    var mode = els.scoringMode.value;
+    var bonus = parseInt(els.exactBonus.value, 10) || 0;
+    var perTrick = parseInt(els.perTrick.value, 10) || 0;
+    var hybrid = mode === 'hybrid';
+    els.perTrick.disabled = hybrid;
+
+    var text;
+    if (hybrid) {
+      text = 'Hit your bid exactly → ' + bonus + ' points. Win fewer tricks than you bid → lose 1 point per trick short. ' +
+        'Win more tricks than you bid → score equals the tricks you actually won.';
+    } else {
+      var missText = mode === 'tricks' ? 'points equal to tricks actually won' :
+        mode === 'penalty' ? 'lose 1 point per trick you were off' : '0 points';
+      text = 'Hit your bid exactly → ' + bonus + ' + (' + perTrick + ' × tricks won). Miss it → ' + missText + '.';
+    }
+    els.scoringNote.textContent = text;
+  }
+  els.scoringMode.addEventListener('change', updateScoringNote);
+  els.exactBonus.addEventListener('input', updateScoringNote);
+  els.perTrick.addEventListener('input', updateScoringNote);
+  updateScoringNote();
+
   function startGame() {
     var n = setupPlayerNames.length;
     var maxCards = parseInt(els.maxCards.value, 10) || defaultMaxCards(n);
@@ -473,6 +498,10 @@
 
   function scoreFor(bid, tricks) {
     var s = state.scoring;
+    if (s.mode === 'hybrid') {
+      if (bid === tricks) return s.exactBonus;
+      return tricks < bid ? -(bid - tricks) : tricks;
+    }
     if (bid === tricks) {
       return s.exactBonus + s.perTrick * tricks;
     }
