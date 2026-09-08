@@ -229,7 +229,7 @@
       <h2>Round Sequence</h2>
       <div class="row">
         <div class="field">
-          <label for="max-cards">Peak hand size</label>
+          <label for="max-cards">Starting hand size (max cards)</label>
           <input type="number" id="max-cards" min="1" max="13" />
         </div>
         <div class="field">
@@ -415,8 +415,8 @@
 
   function buildSequence(maxCards) {
     var seq = [];
-    for (var i = 1; i <= maxCards; i++) seq.push(i);
-    for (var j = maxCards - 1; j >= 1; j--) seq.push(j);
+    for (var i = maxCards; i >= 1; i--) seq.push(i);
+    for (var j = 2; j <= maxCards; j++) seq.push(j);
     return seq;
   }
 
