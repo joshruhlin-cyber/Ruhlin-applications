@@ -73,6 +73,7 @@
     background: var(--panel); border: 1px solid var(--border);
   }
   .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  a.btn { text-decoration: none; }
   .btn.ghost { background: transparent; }
   .btn.danger { color: var(--coral); }
   .btn.sm { padding: 6px 11px; font-size: 0.82rem; border-radius: 10px; }
@@ -168,16 +169,30 @@
   .emoji-row button { font-size: 1.3rem; width: 40px; height: 40px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); }
 
   dialog {
-    margin: auto auto 0; width: 100%; max-width: 560px; max-height: 88vh;
+    margin: auto auto 0; width: 100%; max-width: 560px;
+    max-height: 88vh; max-height: calc(100dvh - env(safe-area-inset-top) - 24px);
     background: var(--bg-2); color: var(--ink); border: 1px solid var(--border);
-    border-radius: 22px 22px 0 0; padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
-    overflow-y: auto;
+    border-radius: 22px 22px 0 0; padding: 0 18px calc(22px + env(safe-area-inset-bottom));
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   }
+  /* Freeze the page behind an open sheet so only the sheet scrolls. */
+  body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; }
   @media (min-width: 600px) { dialog { margin: auto; border-radius: 22px; } }
   dialog::backdrop { background: rgba(3,6,15,0.65); backdrop-filter: blur(3px); }
-  dialog h3 { font-size: 1.15rem; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  dialog h3 {
+    font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 2; background: var(--bg-2);
+    padding: 16px 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
   dialog h4 { font-size: 0.95rem; margin: 18px 0 8px; }
-  .x { font-size: 1.4rem; color: var(--muted); padding: 0 4px; line-height: 1; }
+  .x { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--panel); border: 1px solid var(--border); font-size: 1.3rem; color: var(--ink); line-height: 1; }
+  details.manual { margin-top: 18px; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  details.manual summary { font-weight: 650; font-size: 0.9rem; cursor: pointer; }
+  details.manual[open] summary { margin-bottom: 8px; }
+  .big-steps { list-style: none; counter-reset: s; margin-top: 12px; }
+  .big-steps li { counter-increment: s; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 14px; font-size: 0.9rem; line-height: 1.45; }
+  .big-steps li::before { content: counter(s); flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 800; display: grid; place-items: center; font-size: 0.85rem; }
+  .big-steps .btn { margin-top: 8px; }
   .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
   .modal-actions .btn { flex: 1; }
   .divider { height: 1px; background: var(--border); margin: 18px 0; }
@@ -799,12 +814,31 @@ function openModal(title, body, onSubmit) {
       if (btn) btn.disabled = false;
     }
   });
-  if (!modal.open) modal.showModal();
+  if (!modal.open) {
+    lockScroll(true);
+    modal.showModal();
+  }
+  modal.scrollTop = 0;
 }
+function lockScroll(on) {
+  if (on) {
+    lockScroll.y = window.scrollY;
+    document.body.style.top = `-${lockScroll.y}px`;
+    document.body.classList.add('modal-open');
+  } else if (document.body.classList.contains('modal-open')) {
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, lockScroll.y || 0);
+  }
+}
+modal.addEventListener('close', () => lockScroll(false));
 modal.addEventListener('click', e => {
   if (e.target === modal || e.target.closest('[data-close]')) modal.close();
   const c = e.target.closest('[data-copy]');
   if (c) copy(c.dataset.copy);
+  // Copy the token, then let the link open the Shortcut in the Shortcuts app.
+  const add = e.target.closest('[data-add-shortcut]');
+  if (add) copy(add.dataset.addShortcut);
   const em = e.target.closest('[data-emoji]');
   if (em) { modal.querySelector('[name=emoji]').value = em.dataset.emoji; }
 });
@@ -880,18 +914,17 @@ function openSettings() {
 
 async function openSyncSetup() {
   const { url, key } = api.shortcut;
+  const shared = CFG.shortcutUrl || (DEMO ? 'https://www.icloud.com/shortcuts/demo' : '');
   let token = '…';
   try { token = await api.token(); } catch (e) { toast(e.message); }
   const kv = (k, v) => `<div class="kv"><div><div class="k">${k}</div><div class="v">${esc(v)}</div></div><button type="button" class="btn sm" data-copy="${esc(v)}">Copy</button></div>`;
-  openModal('🍎 Sync from Apple Health', `
-    <p class="small muted" style="line-height:1.5">Apple Health doesn't share data with websites, so an iPhone <b style="color:var(--ink)">Shortcut</b> reads your steps and sends them here. It takes about 5 minutes to set up, one time.</p>
-
+  const manual = `
     <h4>Your connection details</h4>
     ${kv('URL', url)}
     ${kv('apikey header', key)}
     ${kv('Your secret token', token)}
 
-    <h4>1 · Build the Shortcut</h4>
+    <h4>Build the Shortcut</h4>
     <ol class="steps-list">
       <li>Open the <b>Shortcuts</b> app → <b>＋</b> → name it <code>Sync Step Squad</code>.</li>
       <li>Add <b>Find Health Samples</b>: <i>Type</i> is <code>Steps</code>, <i>Start Date</i> is <code>Today</code>. Set <i>Group By</i> to <code>Day</code>.</li>
@@ -905,9 +938,20 @@ async function openSyncSetup() {
         <br>&nbsp;&nbsp;<code>p_steps</code> (Number) = <i>Statistics</i>
         <br>&nbsp;&nbsp;<code>p_day</code> (Text) = <i>Formatted Date</i></li>
       <li>Tap ▶︎ to run it once. Allow Health access when asked. Your steps should appear here.</li>
-    </ol>
+    </ol>`;
+  openModal('🍎 Apple Health sync', `
+    <p class="small muted" style="line-height:1.5;margin-top:10px">Apple Health doesn't share data with websites, so a <b style="color:var(--ink)">Shortcut</b> on your iPhone reads your steps and sends them here.</p>
 
-    <h4>2 · Make it automatic</h4>
+    ${shared ? `
+      <ol class="big-steps">
+        <li><div>Tap below. It copies your secret token and opens the Shortcut.
+          <br><a class="btn primary" href="${esc(shared)}" target="_blank" rel="noopener" data-add-shortcut="${esc(token)}">＋ Add the Shortcut</a></div></li>
+        <li><div>In Shortcuts, tap <b>Set Up Shortcut</b>. When it asks for your token, tap the box and <b>Paste</b>, then <b>Add Shortcut</b>.</div></li>
+        <li><div>Tap the new <b>Sync Step Squad</b> shortcut once and allow Health access. Your steps show up here.</div></li>
+      </ol>
+      ${kv('Your secret token', token)}` : manual}
+
+    <h4>Make it automatic</h4>
     <ol class="steps-list">
       <li>Shortcuts → <b>Automation</b> → <b>＋</b> → <b>Time of Day</b>. Pick a time, choose <b>Run Immediately</b>, and select <code>Sync Step Squad</code>.</li>
       <li>Repeat for a few times through the day (e.g. 10am, 1pm, 4pm, 7pm, 9:30pm).</li>
@@ -915,9 +959,12 @@ async function openSyncSetup() {
     </ol>
     <div class="note">💡 iPhones lock Health data while the phone is locked, so a sync that runs then may be skipped. Syncs triggered while you're using your phone work best. Compare with the Health app the first time. If you also wear an Apple Watch and the number is too high, change the filter to also require <i>Source</i> is your iPhone.</div>
 
+    ${shared ? `<details class="manual"><summary>Build the Shortcut yourself instead</summary>${manual}</details>` : ''}
+
     <div class="divider"></div>
     <button type="button" class="btn sm ghost danger" data-act="rotate">Reset my token</button>
     <p class="small muted" style="margin-top:6px">Do this if you shared your token by accident. You'll need to paste the new one into your Shortcut.</p>
+    <div class="modal-actions"><button type="button" class="btn primary" data-close>Done</button></div>
   `);
 }
 

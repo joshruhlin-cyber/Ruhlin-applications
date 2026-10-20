@@ -31,6 +31,15 @@ Back in Supabase, under **Authentication → URL Configuration**, set **Site URL
 > Supabase's built-in email sender only sends a few emails per hour, and its templates can't be edited. That's fine for a family squad. For more, connect your own SMTP server under Authentication → SMTP.
 
 ### 3. Connect Apple Health (each person, on their iPhone)
+
+**One-tap setup (recommended).** Build the Shortcut once yourself (steps below), then share it so everyone else just taps **Add the Shortcut** in the app:
+1. In Shortcuts, long-press the shortcut → **Duplicate**. In the copy, replace your token in the `p_token` field with the text `PASTE_TOKEN`. That keeps your own token out of the shared copy.
+2. Open the copy → tap its name at the top → **Set Up Shortcut → Import Questions → ＋**, and pick the `p_token` value. Set the question to "Paste your Step Squad token".
+3. Tap **Share → Copy iCloud Link**, and put that link in `config.js` as `shortcutUrl`.
+
+The app's **Add the Shortcut** button then copies each person's token and opens the link; they paste once when asked.
+
+**Building it by hand:**
 Open the app → **🍎 Apple Health sync**. It shows your personal URL, key, and secret token, each with a copy button, plus these steps:
 
 1. **Shortcuts** app → **＋** → name it `Sync Step Squad`.
