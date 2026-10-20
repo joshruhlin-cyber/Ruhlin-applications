@@ -152,6 +152,8 @@
   .hero h1 { font-size: 2rem; font-weight: 850; letter-spacing: -1px; margin-top: 6px; }
   .hero h1 span { color: var(--accent); }
   .hero p { color: var(--muted); margin-top: 8px; line-height: 1.5; }
+  .auth-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+  .auth-links .btn { color: var(--muted); font-weight: 600; border-color: transparent; }
 
   /* ── forms & modal ── */
   label.field { display: block; margin-bottom: 12px; }
@@ -211,7 +213,7 @@
 <dialog id="modal"></dialog>
 
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
 const CFG = window.STEP_SQUAD_CONFIG || {};
 const qs = new URLSearchParams(location.search);
@@ -264,16 +266,28 @@ function supabaseBackend() {
       uid = data.session?.user?.id || null;
       return uid;
     },
-    onAuth(cb) {
-      sb.auth.onAuthStateChange((_event, session) => {
+    onAuth(cb, onRecovery) {
+      sb.auth.onAuthStateChange((event, session) => {
+        // Reset-password links sign you in, then ask for a new password.
+        if (event === 'PASSWORD_RECOVERY') { uid = session?.user?.id || null; return onRecovery(); }
         const next = session?.user?.id || null;
         if (next !== uid) { uid = next; cb(uid); }
       });
     },
-    async sendCode(email) {
-      must(await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } }));
+    async signIn(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    // Returns true when signed in right away, false when the email needs confirming first.
+    async signUp(email, password, name) {
+      const data = must(await sb.auth.signUp({
+        email, password,
+        options: { data: { display_name: name }, emailRedirectTo: location.origin + location.pathname },
+      }));
+      if (data.user && !data.user.identities?.length) throw new Error('That email already has an account — try signing in.');
+      return !!data.session;
     },
-    async verifyCode(email, token) { must(await sb.auth.verifyOtp({ email, token, type: 'email' })); },
+    async resetPassword(email) {
+      must(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }));
+    },
+    async setPassword(password) { must(await sb.auth.updateUser({ password })); },
     async signOut() { await sb.auth.signOut(); },
     async profile() { return must(await sb.from('profiles').select('*').eq('id', uid).single()); },
     async updateProfile(fields) { must(await sb.from('profiles').update(fields).eq('id', uid)); },
@@ -456,9 +470,12 @@ async function boot() {
   if (!api) return renderSetup();
   const join = qs.get('join');
   if (join) store('pendingJoin', join);
+  // Reset-password links arrive as #…type=recovery; Supabase consumes the hash during init.
+  const recovering = location.hash.includes('type=recovery');
   state.uid = await api.init();
-  state.uid ? enter() : renderAuth();
-  api.onAuth?.(uid => { state.uid = uid; uid ? enter() : renderAuth(); });
+  if (state.uid && recovering) renderNewPassword();
+  else state.uid ? enter() : renderAuth();
+  api.onAuth?.(uid => { state.uid = uid; uid ? enter() : renderAuth(); }, renderNewPassword);
 }
 
 async function enter() {
@@ -528,40 +545,73 @@ function renderSetup() {
     </div>`;
 }
 
-function renderAuth(sentTo) {
+function renderAuth(mode = 'signin', notice = '') {
+  const signup = mode === 'signup', forgot = mode === 'forgot';
   app.innerHTML = `
     <div class="hero">
       <div class="logo">👟</div>
       <h1>Step <span>Squad</span></h1>
-      <p>Your steps, your people, one feed.<br>Sign in with your email to get going.</p>
+      <p>Your steps, your people, one feed.</p>
     </div>
     <div class="panel">
-      ${sentTo ? `
-        <form id="verify-form">
-          <p class="small muted" style="margin-bottom:12px;line-height:1.5">We emailed <b style="color:var(--ink)">${esc(sentTo)}</b>. Enter the 6-digit code from the email, or tap the link in it.</p>
-          <label class="field"><span>Code</span><input class="input code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required></label>
-          <button class="btn primary block">Sign in</button>
-          <button type="button" class="btn ghost block small" data-act="auth-back" style="margin-top:6px">Use a different email</button>
-        </form>` : `
-        <form id="email-form">
-          <label class="field"><span>Email</span><input class="input" type="email" name="email" autocomplete="email" placeholder="you@example.com" required></label>
-          <button class="btn primary block">Send sign-in code</button>
-        </form>`}
+      ${notice ? `<div class="note" style="margin:0 0 14px">${notice}</div>` : ''}
+      <form id="auth-form">
+        ${signup ? `<label class="field"><span>Your name</span><input class="input" name="name" maxlength="40" autocomplete="given-name" placeholder="What your squad calls you" required></label>` : ''}
+        <label class="field"><span>Email</span><input class="input" type="email" name="email" autocomplete="email" placeholder="you@example.com" required></label>
+        ${forgot ? '' : `<label class="field"><span>Password</span><input class="input" type="password" name="password" minlength="6" autocomplete="${signup ? 'new-password' : 'current-password'}" placeholder="${signup ? 'At least 6 characters' : ''}" required></label>`}
+        <button class="btn primary block">${signup ? 'Create account' : forgot ? 'Email me a reset link' : 'Sign in'}</button>
+      </form>
+      <div class="auth-links">
+        ${signup || forgot
+          ? `<button class="btn ghost sm" data-act="auth-mode" data-mode="signin">Have an account? Sign in</button>`
+          : `<button class="btn ghost sm" data-act="auth-mode" data-mode="signup">New here? Create an account</button>
+             <button class="btn ghost sm" data-act="auth-mode" data-mode="forgot">Forgot password?</button>`}
+      </div>
     </div>`;
-  $('#email-form')?.addEventListener('submit', async e => {
+  $('#auth-form').addEventListener('submit', async e => {
     e.preventDefault();
-    const btn = e.target.querySelector('button');
-    const email = e.target.email.value.trim();
+    const f = e.target, btn = f.querySelector('button');
+    const email = f.email.value.trim();
     btn.disabled = true;
-    try { await api.sendCode(email); renderAuth(email); }
-    catch (err) { toast(err.message); btn.disabled = false; }
+    try {
+      if (signup) {
+        const signedIn = await api.signUp(email, f.password.value, f.name.value.trim());
+        if (!signedIn) renderAuth('signin', `Almost there! We sent a confirmation link to <b>${esc(email)}</b>. Tap it, then sign in here.`);
+      } else if (forgot) {
+        await api.resetPassword(email);
+        renderAuth('signin', `If <b>${esc(email)}</b> has an account, a reset link is on its way. It opens Step Squad so you can pick a new password.`);
+      } else {
+        await api.signIn(email, f.password.value);
+      }
+    } catch (err) {
+      toast(err.message);
+      btn.disabled = false;
+    }
   });
-  $('#verify-form')?.addEventListener('submit', async e => {
+}
+
+function renderNewPassword() {
+  modal.open && modal.close();
+  app.innerHTML = `
+    <div class="hero"><div class="logo">🔑</div><h1>New <span>password</span></h1></div>
+    <div class="panel">
+      <form id="pw-form">
+        <label class="field"><span>New password</span><input class="input" type="password" name="password" minlength="6" autocomplete="new-password" required></label>
+        <button class="btn primary block">Save and continue</button>
+      </form>
+    </div>`;
+  $('#pw-form').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('button');
     btn.disabled = true;
-    try { await api.verifyCode(sentTo, e.target.code.value.trim()); }
-    catch (err) { toast(err.message); btn.disabled = false; }
+    try {
+      await api.setPassword(e.target.password.value);
+      toast('Password updated');
+      enter();
+    } catch (err) {
+      toast(err.message);
+      btn.disabled = false;
+    }
   });
 }
 
@@ -893,7 +943,7 @@ document.addEventListener('click', async e => {
       case 'new-group': return openNewOrJoin();
       case 'create': return openCreate();
       case 'join': return openJoin();
-      case 'auth-back': return renderAuth();
+      case 'auth-mode': return renderAuth(el.dataset.mode);
       case 'group':
         state.groupId = id; state.cheerFor = null;
         store('groupId', id);

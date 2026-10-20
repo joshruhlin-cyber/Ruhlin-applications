@@ -88,7 +88,10 @@ create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
   insert into profiles (id, display_name)
-  values (new.id, coalesce(nullif(split_part(coalesce(new.email, ''), '@', 1), ''), 'Walker'))
+  values (new.id, left(coalesce(
+    nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
+    nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+    'Walker'), 40))
   on conflict (id) do nothing;
   insert into ingest_tokens (user_id) values (new.id) on conflict (user_id) do nothing;
   return new;
