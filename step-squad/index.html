@@ -325,6 +325,7 @@ function supabaseBackend() {
     async logSteps(steps, day) { must(await sb.rpc('log_my_steps', { p_steps: steps, p_day: day })); },
     async token() { return must(await sb.rpc('get_my_token')); },
     async rotateToken() { return must(await sb.rpc('rotate_my_token')); },
+    async setTimeZone(tz) { must(await sb.rpc('set_my_time_zone', { p_tz: tz })); },
     subscribe(cb) {
       sb.channel('squad')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'feed_events' }, cb)
@@ -442,6 +443,7 @@ function demoBackend() {
     async logSteps(n, day) { record(ME, n, day); emit(); },
     async token() { return 'demo-7f3a9c2e1b8d4f60a5e2'; },
     async rotateToken() { return 'demo-' + Math.random().toString(16).slice(2, 22); },
+    async setTimeZone() {},
     subscribe(cb) { listeners.push(cb); },
     shortcut: { url: 'https://YOUR-PROJECT.supabase.co/rest/v1/rpc/submit_steps', key: 'your-anon-key' },
   };
@@ -499,6 +501,11 @@ async function enter() {
   } catch (e) {
     app.innerHTML = `<div class="panel empty">Couldn't load your profile: ${esc(e.message)}<br>Did you run <code>schema.sql</code> in Supabase?</div>`;
     return;
+  }
+  // The Shortcut only sends a step count, so the server needs to know whose "today" it is.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (tz && state.profile.time_zone !== tz) {
+    api.setTimeZone(tz).then(() => { state.profile.time_zone = tz; }).catch(() => {});
   }
   const pending = load('pendingJoin');
   if (pending) {
@@ -929,14 +936,12 @@ async function openSyncSetup() {
       <li>Open the <b>Shortcuts</b> app → <b>＋</b> → name it <code>Sync Step Squad</code>.</li>
       <li>Add <b>Find Health Samples</b>: <i>Type</i> is <code>Steps</code>, <i>Start Date</i> is <code>Today</code>. Set <i>Group By</i> to <code>Day</code>.</li>
       <li>Add <b>Calculate Statistics</b> → <code>Sum</code> of <i>Health Samples</i>.</li>
-      <li>Add <b>Format Date</b> → <i>Current Date</i>, Date Format <code>Custom</code>: <code>yyyy-MM-dd</code>.</li>
       <li>Add <b>Get Contents of URL</b> with the URL above. Tap <i>Show More</i>:
         <br>• Method: <code>POST</code>
         <br>• Headers: <code>apikey</code> = the key above
-        <br>• Request Body: <code>JSON</code> with three fields:
+        <br>• Request Body: <code>JSON</code> with two fields:
         <br>&nbsp;&nbsp;<code>p_token</code> (Text) = your secret token
-        <br>&nbsp;&nbsp;<code>p_steps</code> (Number) = <i>Statistics</i>
-        <br>&nbsp;&nbsp;<code>p_day</code> (Text) = <i>Formatted Date</i></li>
+        <br>&nbsp;&nbsp;<code>p_steps</code> (Number) = <i>Statistics</i></li>
       <li>Tap ▶︎ to run it once. Allow Health access when asked. Your steps should appear here.</li>
     </ol>`;
   openModal('🍎 Apple Health sync', `
