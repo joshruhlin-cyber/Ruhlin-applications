@@ -15,6 +15,8 @@ create table if not exists public.profiles (
   daily_goal   int  not null default 10000 check (daily_goal between 500 and 100000),
   created_at   timestamptz not null default now()
 );
+-- The app fills this in from the phone so the Shortcut doesn't have to send a date.
+alter table public.profiles add column if not exists time_zone text;
 
 -- Kept apart from profiles so friends can never read your token.
 create table if not exists public.ingest_tokens (
@@ -159,22 +161,45 @@ revoke all on function public._record_steps(uuid, int, date) from public, anon, 
 -- ─────────────────────────────────────────────────────────────
 
 -- Called by the iOS Shortcut. No login needed — the secret token identifies you.
-create or replace function public.submit_steps(p_token text, p_steps numeric, p_day date default null)
+-- p_day is optional; without a usable one, "today" is taken in your own time zone.
+drop function if exists public.submit_steps(text, numeric, date);
+create or replace function public.submit_steps(p_token text, p_steps numeric, p_day text default null)
 returns json language plpgsql security definer set search_path = public as $$
 declare
-  v_user uuid;
-  v_day  date := coalesce(p_day, current_date);
+  v_user  uuid;
+  v_tz    text;
+  v_day   date;
   v_total int;
 begin
-  select user_id into v_user from ingest_tokens where token = p_token;
+  select t.user_id, p.time_zone into v_user, v_tz
+  from ingest_tokens t left join profiles p on p.id = t.user_id
+  where t.token = p_token;
   if v_user is null then
     raise exception 'invalid token';
   end if;
+  begin
+    v_day := nullif(trim(p_day), '')::date;
+  exception when others then
+    v_day := null;
+  end;
+  v_day := coalesce(v_day, (now() at time zone coalesce(v_tz, 'UTC'))::date);
   v_total := public._record_steps(v_user, round(p_steps)::int, v_day);
   return json_build_object('ok', true, 'day', v_day, 'steps', v_total);
 end;
 $$;
-grant execute on function public.submit_steps(text, numeric, date) to anon, authenticated;
+grant execute on function public.submit_steps(text, numeric, text) to anon, authenticated;
+
+create or replace function public.set_my_time_zone(p_tz text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  if not exists (select 1 from pg_timezone_names where name = p_tz) then
+    raise exception 'unknown time zone';
+  end if;
+  update profiles set time_zone = p_tz where id = auth.uid();
+end;
+$$;
+grant execute on function public.set_my_time_zone(text) to authenticated;
 
 create or replace function public.log_my_steps(p_steps int, p_day date)
 returns int language plpgsql security definer set search_path = public as $$

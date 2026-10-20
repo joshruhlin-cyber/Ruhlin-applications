@@ -45,11 +45,10 @@ Open the app → **🍎 Apple Health sync**. It shows your personal URL, key, an
 1. **Shortcuts** app → **＋** → name it `Sync Step Squad`.
 2. **Find Health Samples**: Type is `Steps`, Start Date is `Today`, Group By `Day`.
 3. **Calculate Statistics** → `Sum` of Health Samples.
-4. **Format Date** → Current Date, custom format `yyyy-MM-dd`.
-5. **Get Contents of URL** → the URL, Method `POST`, header `apikey` = key, JSON body:
-   `p_token` (Text) = your token, `p_steps` (Number) = Statistics, `p_day` (Text) = Formatted Date.
-6. Run it once and allow Health access.
-7. **Automation** tab → **Time of Day** → Run Immediately → `Sync Step Squad`. Add a few through the day. An **App** automation (e.g. "when Instagram is opened") is a good way to sync more often.
+4. **Get Contents of URL** → the URL, Method `POST`, header `apikey` = key, JSON body:
+   `p_token` (Text) = your token, `p_steps` (Number) = Statistics.
+5. Run it once and allow Health access.
+6. **Automation** tab → **Time of Day** → Run Immediately → `Sync Step Squad`. Add a few through the day. An **App** automation (e.g. "when Instagram is opened") is a good way to sync more often.
 
 Notes:
 - iOS keeps Health data locked while the phone is locked, so a timed sync that runs then may be skipped. Syncs triggered while you're using the phone are the most reliable.
