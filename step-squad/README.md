@@ -19,15 +19,16 @@ Try it without any setup: open `index.html?demo=1` for a demo with pretend frien
 ### 1. Create the Supabase project
 1. Sign up at [supabase.com](https://supabase.com) and create a new project (the free tier is fine).
 2. Open **SQL Editor**, paste in all of `supabase/schema.sql`, and click **Run**.
-3. Under **Authentication → Emails → Magic Link** (the template), add the line `Your code: {{ .Token }}` so emails include a 6-digit code. You'll need the code when you use the app from the Home Screen, because a magic link always opens in Safari instead.
-4. Under **Project Settings → API**, copy the **Project URL** and the **anon / publishable** key into `config.js`.
+3. Under **Project Settings → API**, copy the **Project URL** and the **anon / publishable** key into `config.js`. Never use the **service_role** / secret key here.
+
+Sign-in uses email + password, which works the same in Safari and from the Home Screen. New accounts get one confirmation email by default. For a small family squad you can skip that under **Authentication → Sign In / Providers → Email → Confirm email**: turn it off and people are signed in as soon as they create an account.
 
 ### 2. Host the page
-Any static host works. With GitHub Pages: repo **Settings → Pages → Deploy from branch → `main` / root**. The app is then at `https://<you>.github.io/ruhlin-applications/step-squad/`.
+Any static host works. With GitHub Pages: repo **Settings → Pages → Deploy from branch → `main` / root**. The app is then at `https://<you>.github.io/Ruhlin-applications/step-squad/`.
 
-Back in Supabase, under **Authentication → URL Configuration**, set **Site URL** to that address and add it to **Redirect URLs**.
+Back in Supabase, under **Authentication → URL Configuration**, set **Site URL** to that address and add it to **Redirect URLs**. Confirmation and password-reset links bring people back there.
 
-> Supabase's built-in email sender only sends a few emails per hour. That's fine for a family squad. For more, connect your own SMTP server under Authentication → SMTP.
+> Supabase's built-in email sender only sends a few emails per hour, and its templates can't be edited. That's fine for a family squad. For more, connect your own SMTP server under Authentication → SMTP.
 
 ### 3. Connect Apple Health (each person, on their iPhone)
 Open the app → **🍎 Apple Health sync**. It shows your personal URL, key, and secret token, each with a copy button, plus these steps:
