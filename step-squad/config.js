@@ -6,4 +6,6 @@ window.STEP_SQUAD_CONFIG = {
   // iCloud link to the shared "Sync Step Squad" Shortcut (asks for the token on install).
   // Leave blank to show build-it-yourself steps instead.
   shortcutUrl: '',
+  // Name of the Shortcut the "Sync now" button runs. Must match the shared Shortcut's name.
+  shortcutName: 'Sync Step Squad',
 };
