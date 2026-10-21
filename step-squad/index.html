@@ -235,6 +235,8 @@ const qs = new URLSearchParams(location.search);
 const DEMO = qs.has('demo');
 const CONFIGURED = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
 const CHEERS = ['👏', '🔥', '💪', '🎉', '🚀'];
+const SHORTCUT_NAME = CFG.shortcutName || 'Sync Step Squad';
+const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const AVATARS = ['🚶', '🏃', '🏃‍♀️', '😎', '🌻', '🐕', '🦄', '🐢', '🦊', '⚡', '🌮', '👟'];
 
 // ── small helpers ──────────────────────────────────────────────
@@ -694,7 +696,10 @@ function renderApp() {
         </div>
       </div>
       <div class="me-actions">
-        <button class="btn sm" data-act="sync">🍎 Apple Health sync</button>
+        ${(IS_IOS || DEMO) && state.steps.some(r => r.user_id === state.uid)
+          ? `<a class="btn sm primary" href="shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}" data-sync-now>🔄 Sync now</a>
+             <button class="btn sm" data-act="sync">🍎 Setup</button>`
+          : `<button class="btn sm" data-act="sync">🍎 Apple Health sync</button>`}
         <button class="btn sm ghost" data-act="log">✏️ Log steps</button>
       </div>
     </section>
@@ -984,6 +989,11 @@ async function share(g) {
 
 // ── actions ───────────────────────────────────────────────────
 document.addEventListener('click', async e => {
+  if (e.target.closest('[data-sync-now]')) {
+    toast('Running your Shortcut… tap ◀ Step Squad to come back');
+    setTimeout(refresh, 4000);
+    return;
+  }
   const el = e.target.closest('[data-act]');
   if (!el) return;
   const { act, id } = el.dataset;
